@@ -4,6 +4,7 @@
 #include "opencv2/core.hpp"
 #include "opencv2/videoio.hpp"
 #include "opencv2/highgui.hpp"
+#include "opencv2/photo.hpp"
 
 int main()
 {
@@ -18,7 +19,8 @@ int main()
     cout << "1 - to capture image from camer" << "\n";
     cout << "2 - to read image from file" << "\n";
     char mode{'1'};
-    cin >> mode;
+//    cin >> mode;
+    mode = '1';
 
     if(mode == '1')
     {
@@ -32,8 +34,8 @@ int main()
             cerr << "ERROR! Unable to open camera\n";
             return -1;
         }
-//        cap.set(cv::CAP_PROP_FRAME_WIDTH, 400);
-//        cap.set(cv::CAP_PROP_FRAME_HEIGHT, 300);
+        cap.set(cv::CAP_PROP_FRAME_WIDTH, 400);
+        cap.set(cv::CAP_PROP_FRAME_HEIGHT, 300);
 
 //        --- GRAB AND WRITE LOOP
         cout << "Start grabbing" << "\n"
@@ -46,7 +48,10 @@ int main()
                 break;
             }
 //            show live and wait for a key with timeout long enough to show images
-            imshow("Live", frame);
+            Mat cartoonize;
+            cv::stylization(frame, cartoonize, 50, 0.4f);
+            imshow("cartoonize", cartoonize);
+
             if (cv::waitKey(5) >= 0)
                 break;
         }
