@@ -25,6 +25,11 @@ int main()
     if(mode == '1')
     {
         Mat frame;
+        int sigma_s{50};
+        int sigma_r{4};
+        int sigma_s_max{200};
+        int sigma_r_max{10};
+
 //        --- INITIALIZE VIDEOCAPTURE
         cv::VideoCapture cap;
         int deviceID = 0;             // 0 = open default camera
@@ -34,8 +39,13 @@ int main()
             cerr << "ERROR! Unable to open camera\n";
             return -1;
         }
-        cap.set(cv::CAP_PROP_FRAME_WIDTH, 400);
-        cap.set(cv::CAP_PROP_FRAME_HEIGHT, 300);
+        cap.set(cv::CAP_PROP_FRAME_WIDTH, 320);
+        cap.set(cv::CAP_PROP_FRAME_HEIGHT, 240);
+
+//        ---Create Trackbars
+        cv::namedWindow("cartoonize", cv::WINDOW_AUTOSIZE);
+        cv::createTrackbar("Trackbar sigma_s", "cartoonize", &sigma_s, sigma_s_max);
+        cv::createTrackbar("Trackbar sigma_r", "cartoonize", &sigma_r, sigma_r_max);
 
 //        --- GRAB AND WRITE LOOP
         cout << "Start grabbing" << "\n"
@@ -49,7 +59,7 @@ int main()
             }
 //            show live and wait for a key with timeout long enough to show images
             Mat cartoonize;
-            cv::stylization(frame, cartoonize, 50, 0.4f);
+            cv::stylization(frame, cartoonize, static_cast<float>(sigma_s), static_cast<float>(sigma_r)/sigma_r_max);
             imshow("cartoonize", cartoonize);
 
             if (cv::waitKey(5) >= 0)
