@@ -30,6 +30,8 @@ int main()
         int sigma_s_max{200};
         int sigma_r_max{10};
 
+
+
 //        --- INITIALIZE VIDEOCAPTURE
         cv::VideoCapture cap;
         int deviceID = 0;             // 0 = open default camera
@@ -39,10 +41,10 @@ int main()
             cerr << "ERROR! Unable to open camera\n";
             return -1;
         }
-        cap.set(cv::CAP_PROP_FRAME_WIDTH, 320);
-        cap.set(cv::CAP_PROP_FRAME_HEIGHT, 240);
+        cap.set(cv::CAP_PROP_FRAME_WIDTH, 640);
+        cap.set(cv::CAP_PROP_FRAME_HEIGHT, 480);
 
-//        ---Create Trackbars
+//        ---CREATE TRACKBARS
         cv::namedWindow("cartoonize", cv::WINDOW_AUTOSIZE);
         cv::createTrackbar("Trackbar sigma_s", "cartoonize", &sigma_s, sigma_s_max);
         cv::createTrackbar("Trackbar sigma_r", "cartoonize", &sigma_r, sigma_r_max);
@@ -57,10 +59,45 @@ int main()
                 cerr << "ERROR! blank frame grabbed\n";
                 break;
             }
-//            show live and wait for a key with timeout long enough to show images
-            Mat cartoonize;
-            cv::stylization(frame, cartoonize, static_cast<float>(sigma_s), static_cast<float>(sigma_r)/sigma_r_max);
-            imshow("cartoonize", cartoonize);
+
+            imshow("camera", frame);
+
+//            --- CARTOONIZE USING DOMAIN TRANSFORM FILTER
+//            Mat cartoonize;
+//            cv::stylization(frame, cartoonize, static_cast<float>(sigma_s), static_cast<float>(sigma_r)/sigma_r_max);
+//            imshow("cartoonize", cartoonize);
+
+//            ---CARTOONIZE USING BILATERAL FILTER
+            Mat tmp = frame.clone();
+            Mat img_sampled_down = tmp.clone();
+            Mat img_bilat = tmp.clone();
+            Mat img_sampled_up = tmp.clone();
+            int bilateral_count = 7;
+
+            cv::pyrDown(tmp, img_sampled_down, cv::Size(tmp.cols/2, tmp.rows/2));
+
+            for( int i = 0; i < bilateral_count; ++i)
+            {
+                cv::bilateralFilter(img_sampled_down, img_bilat, 9, 9, 7);
+                img_sampled_down = img_bilat.clone();
+            }
+
+            cv::pyrUp(img_bilat, img_sampled_up, cv::Size(tmp.cols, tmp.rows));
+
+            Mat img_gray;
+            Mat img_median;
+            cv::cvtColor(img_sampled_up, img_gray, cv::COLOR_RGB2GRAY);
+            cv::medianBlur(img_gray, img_median, 17);
+
+            Mat img_edge;
+            cv::adaptiveThreshold(img_median, img_edge, 255, cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY, 9, 2);
+
+            Mat img_edge_color;
+            Mat img_cartoon;
+            cv::cvtColor(img_edge, img_edge_color, cv::COLOR_GRAY2BGR);
+            cv::bitwise_and(img_edge_color, img_sampled_up, img_cartoon);
+
+            imshow("cartoonize", img_cartoon);
 
             if (cv::waitKey(5) >= 0)
                 break;
