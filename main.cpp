@@ -41,8 +41,8 @@ int main()
             cerr << "ERROR! Unable to open camera\n";
             return -1;
         }
-        cap.set(cv::CAP_PROP_FRAME_WIDTH, 640);
-        cap.set(cv::CAP_PROP_FRAME_HEIGHT, 480);
+        cap.set(cv::CAP_PROP_FRAME_WIDTH, 320);
+        cap.set(cv::CAP_PROP_FRAME_HEIGHT, 240);
 
 //        ---CREATE TRACKBARS
         cv::namedWindow("cartoonize", cv::WINDOW_AUTOSIZE);
