@@ -16,7 +16,7 @@ int main()
     using std::string;
 
     cout << "Select option:" << "\n";
-    cout << "1 - to capture image from camer" << "\n";
+    cout << "1 - to capture image from camera" << "\n";
     cout << "2 - to read image from file" << "\n";
     char mode{'1'};
 //    cin >> mode;
@@ -32,22 +32,27 @@ int main()
 
 
 
-//        --- INITIALIZE VIDEOCAPTURE
+//        --- INITIALIZE VIDEO CAPTURE
         cv::VideoCapture cap;
         int deviceID = 0;             // 0 = open default camera
         int apiID = cv::CAP_ANY;      // 0 = autodetect default API
-        cap.open(deviceID + apiID);
-        if (!cap.isOpened()) {
+        cap.open(deviceID, apiID);
+        if (!cap.isOpened())
+        {
             cerr << "ERROR! Unable to open camera\n";
             return -1;
         }
-        cap.set(cv::CAP_PROP_FRAME_WIDTH, 320);
-        cap.set(cv::CAP_PROP_FRAME_HEIGHT, 240);
+
+//        ---SCALE DOWN VIDEO - does not work on my mac :(
+//        cap.set(cv::CAP_PROP_FRAME_WIDTH, 320);
+//        cap.set(cv::CAP_PROP_FRAME_HEIGHT, 240);
+
 
 //        ---CREATE TRACKBARS
         cv::namedWindow("cartoonize", cv::WINDOW_AUTOSIZE);
-        cv::createTrackbar("Trackbar sigma_s", "cartoonize", &sigma_s, sigma_s_max);
-        cv::createTrackbar("Trackbar sigma_r", "cartoonize", &sigma_r, sigma_r_max);
+//        --Below trackbars are for Domain Transform Filter
+//        cv::createTrackbar("Trackbar sigma_s", "cartoonize", &sigma_s, sigma_s_max);
+//        cv::createTrackbar("Trackbar sigma_r", "cartoonize", &sigma_r, sigma_r_max);
 
 //        --- GRAB AND WRITE LOOP
         cout << "Start grabbing" << "\n"
@@ -55,10 +60,13 @@ int main()
         for (;;)
         {
             cap.read(frame);
-            if (frame.empty()) {
+            if (frame.empty())
+            {
                 cerr << "ERROR! blank frame grabbed\n";
                 break;
             }
+
+            cv::pyrDown(frame, frame, cv::Size(frame.cols/2, frame.rows/2));
 
             imshow("camera", frame);
 
@@ -90,7 +98,7 @@ int main()
             cv::medianBlur(img_gray, img_median, 17);
 
             Mat img_edge;
-            cv::adaptiveThreshold(img_median, img_edge, 255, cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY, 9, 2);
+            cv::adaptiveThreshold(img_median, img_edge, 255, cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY, 7, 2);
 
             Mat img_edge_color;
             Mat img_cartoon;
@@ -98,6 +106,8 @@ int main()
             cv::bitwise_and(img_edge_color, img_sampled_up, img_cartoon);
 
             imshow("cartoonize", img_cartoon);
+
+//            ---
 
             if (cv::waitKey(5) >= 0)
                 break;
