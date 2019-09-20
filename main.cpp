@@ -6,121 +6,112 @@
 #include "opencv2/highgui.hpp"
 #include "opencv2/photo.hpp"
 
+#define CVUI_IMPLEMENTATION
+#include "cvui2.7.0/cvui.h"
+#include "CartoonizerDT.h"
+#include "CartoonizerBilateral.h"
+
+
 int main()
 {
-    using cv::Mat;
-
     using std::cout;
-    using std::cin;
-    using std::cerr;
-    using std::string;
 
-    cout << "Select option:" << "\n";
-    cout << "1 - to capture image from camera" << "\n";
-    cout << "2 - to read image from file" << "\n";
-    char mode{'1'};
-//    cin >> mode;
-    mode = '1';
-
-    if(mode == '1')
+//    --- INITIALIZE VIDEO CAPTURE
+    cv::VideoCapture cap;
+    int deviceID = 0;             // 0 = open default camera
+    int apiID = cv::CAP_ANY;      // 0 = autodetect default API
+    cap.open(deviceID, apiID);
+    if (!cap.isOpened())
     {
-        Mat frame;
-        int sigma_s{50};
-        int sigma_r{4};
-        int sigma_s_max{200};
-        int sigma_r_max{10};
+        std::cerr << "ERROR! Unable to open camera\n";
+        return -1;
+    }
+    cv::Mat frame;
+
+//    --- CREATE UI
+    cv::Mat ctrl_panel = cv::Mat(200, 500, CV_8UC3);
+    cv::namedWindow("control panel");
+    cvui::init("control panel");
 
 
+    bool c1_checked{false};
+    bool c2_checked{false};
+    CartoonizerDT *cartDT{nullptr};
+    CartoonizerBilateral *cartBilateral{nullptr};
 
-//        --- INITIALIZE VIDEO CAPTURE
-        cv::VideoCapture cap;
-        int deviceID = 0;             // 0 = open default camera
-        int apiID = cv::CAP_ANY;      // 0 = autodetect default API
-        cap.open(deviceID, apiID);
-        if (!cap.isOpened())
+
+    for(;;)
+    {
+//        --- READ FRAME FROM CAMERA
+        cap.read(frame);
+        if(frame.empty())
         {
-            cerr << "ERROR! Unable to open camera\n";
-            return -1;
+            std::cerr << "ERROR blank frame grabbed \n";
+            break;
         }
 
-//        ---SCALE DOWN VIDEO - does not work on my mac :(
-//        cap.set(cv::CAP_PROP_FRAME_WIDTH, 320);
-//        cap.set(cv::CAP_PROP_FRAME_HEIGHT, 240);
+//        --- UPDATE UI
+        ctrl_panel = cv::Scalar(49, 52, 49);
+
+        cvui::context("control panel");
+        cvui::beginRow(ctrl_panel, 10, 10, -1, -1, 20);
+        cvui::checkbox("Bilateral filter", &c1_checked, 0xFFFFFF);
+        cvui::checkbox("Domain Transform filter", &c2_checked, 0xFFFFFF);
+        cvui::endRow();
+
+        cvui::update();
+        cvui::imshow("control panel", ctrl_panel);
 
 
-//        ---CREATE TRACKBARS
-        cv::namedWindow("cartoonize", cv::WINDOW_AUTOSIZE);
-//        --Below trackbars are for Domain Transform Filter
-//        cv::createTrackbar("Trackbar sigma_s", "cartoonize", &sigma_s, sigma_s_max);
-//        cv::createTrackbar("Trackbar sigma_r", "cartoonize", &sigma_r, sigma_r_max);
 
-//        --- GRAB AND WRITE LOOP
-        cout << "Start grabbing" << "\n"
-             << "Press any key to terminate" << "\n";
-        for (;;)
+//        --- DOMAIN TRANSFORM FILTER
+//        Create DT filter if does not exist and DT is ON.
+        if(cartDT == nullptr && c2_checked)
         {
-            cap.read(frame);
-            if (frame.empty())
-            {
-                cerr << "ERROR! blank frame grabbed\n";
-                break;
-            }
+            cartDT = new CartoonizerDT(frame);
+            cout << "tworzenie DT \n";
+        }
+//        Update DT.
+        if(cartDT != nullptr && c2_checked)
+        {
+            cartDT->update(frame);
+        }
+//        Delete DT if exists and DT is turned OFF.
+        else if(cartDT != nullptr)
+        {
+            delete cartDT;
+            cartDT = nullptr;
+            cout << "niszczenie DT \n";
+        }
 
-            cv::pyrDown(frame, frame, cv::Size(frame.cols/2, frame.rows/2));
 
-            imshow("camera", frame);
+//        --- BILATERAL FILTER
+//        Create Bilateral filter if does not exist and Bilateral is ON.
+        if(cartBilateral == nullptr && c1_checked)
+        {
+            cartBilateral = new CartoonizerBilateral(frame);
+            cout << "tworzenie Bilateral \n";
+        }
+//        Update Bilateral.
+        if(cartBilateral != nullptr && c1_checked)
+        {
+            cartBilateral->update(frame);
+        }
+//        Delete Bilateral if exists and Bilateral is turned OFF.
+        else if(cartBilateral != nullptr)
+        {
+            delete cartBilateral;
+            cartBilateral = nullptr;
+            cout << "niszczenie Bilateral \n";
+        }
 
-//            --- CARTOONIZE USING DOMAIN TRANSFORM FILTER
-//            Mat cartoonize;
-//            cv::stylization(frame, cartoonize, static_cast<float>(sigma_s), static_cast<float>(sigma_r)/sigma_r_max);
-//            imshow("cartoonize", cartoonize);
 
-//            ---CARTOONIZE USING BILATERAL FILTER
-            Mat tmp = frame.clone();
-            Mat img_sampled_down = tmp.clone();
-            Mat img_bilat = tmp.clone();
-            Mat img_sampled_up = tmp.clone();
-            int bilateral_count = 7;
-
-            cv::pyrDown(tmp, img_sampled_down, cv::Size(tmp.cols/2, tmp.rows/2));
-
-            for( int i = 0; i < bilateral_count; ++i)
-            {
-                cv::bilateralFilter(img_sampled_down, img_bilat, 9, 9, 7);
-                img_sampled_down = img_bilat.clone();
-            }
-
-            cv::pyrUp(img_bilat, img_sampled_up, cv::Size(tmp.cols, tmp.rows));
-
-            Mat img_gray;
-            Mat img_median;
-            cv::cvtColor(img_sampled_up, img_gray, cv::COLOR_RGB2GRAY);
-            cv::medianBlur(img_gray, img_median, 17);
-
-            Mat img_edge;
-            cv::adaptiveThreshold(img_median, img_edge, 255, cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY, 7, 2);
-
-            Mat img_edge_color;
-            Mat img_cartoon;
-            cv::cvtColor(img_edge, img_edge_color, cv::COLOR_GRAY2BGR);
-            cv::bitwise_and(img_edge_color, img_sampled_up, img_cartoon);
-
-            imshow("cartoonize", img_cartoon);
-
-//            ---
-
-            if (cv::waitKey(5) >= 0)
-                break;
+//        --- Exit if ESC
+        if (cv::waitKey(10) == 27) {
+            break;
         }
     }
-    else if(mode == '2')
-    {
-        cout << "Provide path to image file." << "\n";
-        cin.ignore(32767, '\n');
-        string path{" "};
-        std::getline(cin, path);
 
-    }
 
     return 0;
 }

@@ -7,6 +7,6 @@ SET(OpenCV_DIR /usr/local/Cellar/OpenCV_installation/installation/OpenCV-master/
 find_package(OpenCV REQUIRED)
 include_directories(${OpenCV_INCLUDE_DIRS})
 
-add_executable(cartoonize main.cpp)
+add_executable(cartoonize main.cpp CartoonizerBilateral.cpp CartoonizerBilateral.h CartoonizerDT.cpp CartoonizerDT.h)
 
 target_link_libraries(cartoonize ${OpenCV_LIBRARIES})
